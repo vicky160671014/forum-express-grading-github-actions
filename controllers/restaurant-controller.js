@@ -25,7 +25,8 @@ const restaurantController = {
         res.render('restaurant', { restaurant })
       })
       .catch(err => next(err))
-  }
+  },
+  getDashboard: (req, res, next) => {}
 }
 
 module.exports = restaurantController
