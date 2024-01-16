@@ -42,13 +42,11 @@ const restaurantController = {
       ] // 拿出關聯的 Category model
     })
       .then(restaurant => {
-        // console.log('restaurant', restaurant)
-        // console.log('restaurant.Comments', restaurant.Comments)
-        // console.log('restaurant.Comments[0].dataValues', restaurant.Comments[0].dataValues)
         if (!restaurant) throw new Error("Restaurant didn't exist!")
         return restaurant.increment('viewCounts')
       })
       .then(restaurant => {
+        console.log(restaurant.toJSON())
         res.render('restaurant', { restaurant: restaurant.toJSON() })
       })
       .catch(err => next(err))
