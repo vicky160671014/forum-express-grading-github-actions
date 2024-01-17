@@ -46,7 +46,6 @@ const restaurantController = {
         return restaurant.increment('viewCounts')
       })
       .then(restaurant => {
-        console.log(restaurant.toJSON())
         res.render('restaurant', { restaurant: restaurant.toJSON() })
       })
       .catch(err => next(err))
