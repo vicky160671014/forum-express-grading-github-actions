@@ -64,7 +64,7 @@ const userController = {
     const { name } = req.body
     const { file } = req
     if (!name) throw new Error('Restaurant name is required!')
-    if (req.user.id !== req.params.id) throw new Error('錯誤，僅能更改自己的資料')
+    if (req.user.id !== Number(req.params.id)) throw new Error('錯誤，僅能更改自己的資料')
     return Promise.all([
       User.findByPk(req.params.id),
       localFileHandler(file)
