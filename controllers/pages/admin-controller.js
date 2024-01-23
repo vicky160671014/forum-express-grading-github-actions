@@ -1,14 +1,9 @@
 const { Restaurant, User, Category } = require('../../models')
-const { localFileHandler } = require('../../helpers/file-helpers')
+const adminServices = require('../../services/admin-services')
+
 const adminController = {
   getRestaurants: (req, res, next) => {
-    return Restaurant.findAll({
-      raw: true,
-      nest: true,
-      include: [Category]
-    })
-      .then(restaurants => res.render('admin/restaurants', { restaurants }))
-      .catch(err => next(err))
+    adminServices.getRestaurants(req, (err, data) => err ? next(err) : res.render('admin/restaurants', data))
   },
   createRestaurant: (req, res, next) => {
     return Category.findAll({
@@ -18,36 +13,15 @@ const adminController = {
       .catch(err => next(err))
   },
   postRestaurant: (req, res, next) => {
-    const { name, tel, address, openingHours, description, categoryId } = req.body
-    if (!name) throw new Error('Restaurant name is required!')
-    const { file } = req
-    localFileHandler(file)
-      .then(filePath => Restaurant.create({
-        name,
-        tel,
-        address,
-        openingHours,
-        description,
-        image: filePath || null,
-        categoryId
-      }))
-      .then(() => {
-        req.flash('success_messages', 'restaurant was successfully created')
-        res.redirect('/admin/restaurants')
-      })
-      .catch(err => next(err))
+    adminServices.postRestaurant(req, (err, data) => {
+      if (err) return next(err)
+      req.flash('success_messages', 'restaurant was successfully created')
+      req.session.createdData = data
+      return res.redirect('/admin/restaurants')
+    })
   },
   getRestaurant: (req, res, next) => {
-    return Restaurant.findByPk(req.params.id, {
-      raw: true,
-      nest: true,
-      include: [Category]
-    })
-      .then(restaurant => {
-        if (!restaurant) throw new Error("Restaurant didn't exist!'")
-        res.render('admin/restaurant', { restaurant })
-      })
-      .catch(err => next(err))
+    adminServices.getRestaurant(req, (err, data) => err ? next(err) : res.render('admin/restaurant', data))
   },
   editRestaurant: (req, res, next) => {
     return Promise.all([
@@ -61,46 +35,22 @@ const adminController = {
       .catch(err => next(err))
   },
   putRestaurant: (req, res, next) => {
-    const { name, tel, address, openingHours, description, categoryId } = req.body
-    if (!name) throw new Error('Restaurant name is required!')
-    const { file } = req
-    Promise.all([
-      Restaurant.findByPk(req.params.id),
-      localFileHandler(file)
-    ])
-      .then(([restaurant, filePath]) => {
-        if (!restaurant) throw new Error("Restaurant didn't exist!")
-        return restaurant.update({
-          name,
-          tel,
-          address,
-          openingHours,
-          description,
-          image: filePath || restaurant.image,
-          categoryId
-        })
-      })
-      .then(() => {
-        req.flash('success_messages', 'restaurant was successfully to update')
-        res.redirect('/admin/restaurants')
-      })
-      .catch(err => next(err))
+    adminServices.putRestaurant(req, (err, data) => {
+      if (err) return next(err)
+      req.flash('success_messages', 'restaurant was successfully to update')
+      req.session.updatedRestaurant = data
+      return res.redirect('/admin/restaurants')
+    })
   },
   deleteRestaurant: (req, res, next) => {
-    return Restaurant.findByPk(req.params.id)
-      .then(restaurant => {
-        if (!restaurant) throw new Error("Restaurant didn't exist!")
-        return restaurant.destroy()
-      })
-      .then(() => res.redirect('/admin/restaurants'))
-      .catch(err => next(err))
+    adminServices.deleteRestaurant(req, (err, data) => {
+      if (err) return next(err)
+      req.session.deletedData = data
+      return res.redirect('/admin/restaurants')
+    })
   },
   getUsers: (req, res, next) => {
-    return User.findAll({
-      raw: true
-    })
-      .then(users => res.render('admin/users', { users }))
-      .catch(err => next(err))
+    adminServices.getUsers(req, (err, data) => err ? next(err) : res.render('admin/users', data))
   },
   patchUser: (req, res, next) => {
     const id = req.params.id

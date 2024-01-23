@@ -1,7 +1,7 @@
 const bcrypt = require('bcryptjs')
 const db = require('../../models')
-const { User, Comment, Restaurant, Favorite, Like, Followship } = db
-const { localFileHandler } = require('../../helpers/file-helpers')
+const { User, Comment, Restaurant } = db
+const userServices = require('../../services/user-services')
 const userController = {
   signUpPage: (req, res) => {
     res.render('signup')
@@ -61,157 +61,57 @@ const userController = {
       .catch(err => next(err))
   },
   putUser: (req, res, next) => {
-    const { name } = req.body
-    const { file } = req
-    if (!name) throw new Error('Restaurant name is required!')
-    if (req.user.id !== Number(req.params.id)) throw new Error('錯誤，僅能更改自己的資料')
-    return Promise.all([
-      User.findByPk(req.params.id),
-      localFileHandler(file)
-    ])
-      .then(([user, filePath]) => {
-        if (!user) throw new Error("Restaurant didn't exist!")
-        return user.update({
-          name,
-          image: filePath || user.image
-        })
-          .then(user => {
-            req.flash('success_messages', '使用者資料編輯成功')
-            res.redirect(`/users/${user.id}`)
-          })
-          .catch(err => next(err))
-      })
+    userServices.putUser(req, (err, data) => {
+      if (err) return next(err)
+      req.flash('success_messages', '使用者資料編輯成功')
+      req.session.putData = data
+      return res.redirect(`/users/${data.user.id}`)
+    })
   },
   addFavorite: (req, res, next) => {
-    const { restaurantId } = req.params
-    return Promise.all([
-      Restaurant.findByPk(restaurantId),
-      Favorite.findOne({
-        where: {
-          userId: req.user.id,
-          restaurantId
-        }
-      })
-    ])
-      .then(([restaurant, favorite]) => {
-        if (!restaurant) throw new Error("Restaurant didn't exist!")
-        if (favorite) throw new Error('You have favorited this restaurant!')
-
-        return Favorite.create({
-          userId: req.user.id,
-          restaurantId
-        })
-      })
-      .then(() => res.redirect('back'))
-      .catch(err => next(err))
+    userServices.addFavorite(req, (err, data) => {
+      if (err) return next(err)
+      req.session.newFavorite = data
+      return res.redirect('back')
+    })
   },
   removeFavorite: (req, res, next) => {
-    const { restaurantId } = req.params
-    return Favorite.findOne({
-      where: {
-        userId: req.user.id,
-        restaurantId
-      }
+    userServices.removeFavorite(req, (err, data) => {
+      if (err) return next(err)
+      req.session.removedFavorite = data
+      return res.redirect('back')
     })
-      .then(favorite => {
-        if (!favorite) throw new Error("You haven't favorited this restaurant")
-
-        return favorite.destroy()
-      })
-      .then(() => res.redirect('back'))
-      .catch(err => next(err))
   },
   addLike: (req, res, next) => {
-    const { restaurantId } = req.params
-    return Promise.all([
-      Restaurant.findByPk(restaurantId),
-      Like.findOne({
-        where: {
-          userId: req.user.id,
-          restaurantId
-        }
-      })
-    ])
-      .then(([restaurant, like]) => {
-        if (!restaurant) throw new Error("Restaurant didn't exist!")
-        if (like) throw new Error('You have liked this restaurant!')
-
-        return Like.create({
-          userId: req.user.id,
-          restaurantId
-        })
-      })
-      .then(() => res.redirect('back'))
-      .catch(err => next(err))
+    userServices.addLike(req, (err, data) => {
+      if (err) return next(err)
+      req.session.newLike = data
+      return res.redirect('back')
+    })
   },
   removeLike: (req, res, next) => {
-    const { restaurantId } = req.params
-    return Like.findOne({
-      where: {
-        userId: req.user.id,
-        restaurantId
-      }
-    }).then(like => {
-      if (!like) throw new Error("You haven't liked this restaurant")
-
-      return like.destroy()
+    userServices.removeLike(req, (err, data) => {
+      if (err) return next(err)
+      req.session.removedLike = data
+      return res.redirect('back')
     })
-      .then(() => res.redirect('back'))
-      .catch(err => next(err))
   },
   getTopUsers: (req, res, next) => {
-    // 撈出所有User與followers資料
-    return User.findAll({
-      include: [{ model: User, as: 'Followers' }]
-    })
-      .then(users => {
-        // 整理 users 資料，把每個 user 項目都拿出來處理一次，並把新陣列儲存在 users 裡
-        const result = users
-          .map(user => ({
-            ...user.toJSON(),
-            followerCount: user.Followers.length,
-            isFollowed: req.user.Followings.some(f => f.id === user.id)
-          }))
-          .sort((a, b) => b.followerCount - a.followerCount)
-        res.render('top-users', { users: result })
-      })
-      .catch(err => next(err))
+    userServices.getTopUsers(req, (err, data) => err ? next(err) : res.render('top-users', data))
   },
   addFollowing: (req, res, next) => {
-    const { userId } = req.params
-    Promise.all([
-      User.findByPk(userId),
-      Followship.findOne({
-        where: {
-          followerId: req.user.id,
-          followingId: req.params.userId
-        }
-      })
-    ])
-      .then(([user, followship]) => {
-        if (!user) throw new Error("User didn't exist!")
-        if (followship) throw new Error('You are already following this user!')
-        return Followship.create({
-          followerId: req.user.id,
-          followingId: userId
-        })
-      })
-      .then(() => res.redirect('back'))
-      .catch(err => next(err))
+    userServices.addFollowing(req, (err, data) => {
+      if (err) return next(err)
+      req.session.newFollowing = data
+      return res.redirect('back')
+    })
   },
   removeFollowing: (req, res, next) => {
-    return Followship.findOne({
-      where: {
-        followerId: req.user.id,
-        followingId: req.params.userId
-      }
+    userServices.removeFollowing(req, (err, data) => {
+      if (err) return next(err)
+      req.session.removeFollowing = data
+      return res.redirect('back')
     })
-      .then(followship => {
-        if (!followship) throw new Error("You haven't followed this user!")
-        return followship.destroy()
-      })
-      .then(() => res.redirect('back'))
-      .catch(err => next(err))
   }
 }
 
